@@ -1,8 +1,6 @@
 // game-components.js
 
-// ----------------------------------------------------
 // 1. ゲームの状態管理 (game-state)
-// ----------------------------------------------------
 AFRAME.registerComponent('game-state', {
     init: function () {
         this.score = 0;
@@ -11,7 +9,7 @@ AFRAME.registerComponent('game-state', {
         this.hpText = document.getElementById('hp-text');
         this.restartBtn = document.getElementById('restart-button');
         
-        // ボタンクリックでリセットを実行
+        // 再挑戦ボタンのクリックイベント
         document.getElementById('restart-plane').addEventListener('click', () => {
             this.resetGame();
         });
@@ -39,42 +37,39 @@ AFRAME.registerComponent('game-state', {
 
         if (this.hp <= 0) {
             this.hpText.setAttribute('text', 'value', 'GAME OVER!');
-            this.restartBtn.setAttribute('visible', 'true'); // ボタンを表示
+            this.restartBtn.setAttribute('visible', 'true');
             
             const generator = this.el.querySelector('[slime-generator]');
             if (generator) generator.components['slime-generator'].stopGenerating();
         }
     },
-    // ★リセット機能
+    // リセット処理
     resetGame: function () {
         this.hp = 3;
         this.score = 0;
         this.updateHUD();
-        this.restartBtn.setAttribute('visible', 'false'); // ボタンを隠す
+        this.restartBtn.setAttribute('visible', 'false');
 
-        // 画面上のスライムを掃除
+        // 残っているスライムを消去
         const slimes = document.querySelectorAll('[slime]');
         slimes.forEach(s => {
             if (s.parentNode) s.parentNode.removeChild(s);
         });
 
-        // スライム生成を再開
+        // 生成再開
         const generator = this.el.querySelector('[slime-generator]');
         if (generator) generator.components['slime-generator'].startGame();
     }
 });
 
-// ----------------------------------------------------
-// 2. スライム生成機 (slime-generator)
-// ----------------------------------------------------
+// 2. 生成機
 AFRAME.registerComponent('slime-generator', {
     init: function () {
         this.spawnInterval = 800;
         this.startGame();
     },
     startGame: function () {
-        // 二重起動防止
-        this.stopGenerating();
+        this.stopGenerating(); // 二重起動防止
         this.interval = setInterval(this.spawnSlime.bind(this), this.spawnInterval);
     },
     stopGenerating: function () {
@@ -83,7 +78,6 @@ AFRAME.registerComponent('slime-generator', {
     spawnSlime: function () {
         const scene = this.el.sceneEl;
         const slimeSize = 0.3;
-        
         const x = (Math.random() - 0.5) * 15;
         const y = 0.5; 
         const z = -(5 + Math.random() * 10); 
@@ -92,9 +86,7 @@ AFRAME.registerComponent('slime-generator', {
         slime.setAttribute('position', { x: x, y: y, z: z });
         slime.setAttribute('geometry', `primitive: sphere; radius: ${slimeSize}`); 
         slime.setAttribute('material', 'color', '#00ff00; opacity: 0.9');
-        
         slime.setAttribute('dynamic-body', `shape: sphere; mass: 2; linearDamping: 0; angularDamping: 0;`); 
-        
         slime.setAttribute('slime', ''); 
         scene.appendChild(slime);
 
@@ -104,9 +96,7 @@ AFRAME.registerComponent('slime-generator', {
     }
 });
 
-// ----------------------------------------------------
-// 3. スライムの挙動 (slime) - 元の物理ロジックを維持
-// ----------------------------------------------------
+// 3. スライムの挙動 (飛んできていたバージョンを維持)
 AFRAME.registerComponent('slime', {
     init: function () {
         this.gameState = this.el.sceneEl.components['game-state'];
@@ -114,7 +104,6 @@ AFRAME.registerComponent('slime', {
         this.thrustStrength = 8;
         this.hitProcessed = false; 
     },
-
     tick: function () {
         const body = this.el.body;
         if (!body || !this.playerEl || this.hitProcessed) return; 
@@ -140,9 +129,7 @@ AFRAME.registerComponent('slime', {
     }
 });
 
-// ----------------------------------------------------
-// 4. 剣 & 5. 盾 (元のロジックを維持)
-// ----------------------------------------------------
+// 4. 剣 & 5. 盾 (維持)
 AFRAME.registerComponent('sword', {
     init: function () {
         this.el.addEventListener('collide', (e) => {

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>VR スライム討伐 - コントローラー修正版</title>
+    <title>VR スライム討伐 - コントローラー完全対応</title>
     
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="aframe-physics-system.min.js"></script>
@@ -27,22 +27,24 @@
                 <a-text value="RESTART GAME" align="center" width="4" position="0 0 0.02"></a-text>
             </a-entity>
 
-            <a-entity cursor="fuse: false; rayOrigin: mouse"
-                      raycaster="objects: .clickable"></a-entity>
+            <a-entity cursor="fuse: false; rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
         </a-entity>
 
-        <a-entity id="left-hand" oculus-touch-controls="hand: left" vive-controls="hand: left" windows-motion-controls="hand: left" dynamic-body="shape: box; mass: 1" shield>
-            <a-box color="#393736" width="0.4" height="0.6" depth="0.05" position="0.05 0.05 -0.1" rotation="0 0 0"></a-box>
+        <a-entity id="left-hand" 
+                  oculus-touch-controls="hand: left" 
+                  vive-controls="hand: left" 
+                  hand-controls="hand: left"
+                  dynamic-body="shape: box; mass: 1" shield>
+            <a-box color="#393736" width="0.4" height="0.6" depth="0.05" position="0.05 0.05 -0.1"></a-box>
         </a-entity>
 
         <a-entity id="right-hand" 
+                  hand-controls="hand: right"
                   laser-controls="hand: right" 
                   raycaster="objects: .clickable; far: 5" 
                   oculus-touch-controls="hand: right" 
                   vive-controls="hand: right" 
-                  windows-motion-controls="hand: right" 
-                  dynamic-body="shape: box; mass: 1" 
-                  sword>
+                  dynamic-body="shape: box; mass: 1" sword>
             <a-box color="#A94442" width="0.05" height="0.05" depth="0.15" position="0 0 0.075" rotation="90 0 0"></a-box>
             <a-cylinder color="#EEEEEE" radius="0.02" height="1.0" position="0 0.5 0.075" rotation="90 0 0"></a-cylinder>
         </a-entity>
@@ -52,8 +54,7 @@
         <a-box static-body position="0 -0.05 0" width="40" height="0.1" depth="40" color="#5a9c5e"></a-box>
         <a-sky color="#B0E0E6"></a-sky>
         <a-light type="ambient" color="#BBB"></a-light>
-        <a-light type="directional" position="-0.5 1 1" castShadow="true"></a-light>
-        
+        <a-light type="directional" position="-0.5 1 1"></a-light>
     </a-scene>
 </body>
 </html>

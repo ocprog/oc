@@ -9,7 +9,7 @@ AFRAME.registerComponent('game-state', {
         this.hpText = document.getElementById('hp-text');
         this.restartBtn = document.getElementById('restart-button');
         
-        // 再挑戦ボタンのクリックイベント
+        // 再挑戦ボタンのクリック処理
         document.getElementById('restart-plane').addEventListener('click', () => {
             this.resetGame();
         });
@@ -43,7 +43,6 @@ AFRAME.registerComponent('game-state', {
             if (generator) generator.components['slime-generator'].stopGenerating();
         }
     },
-    // リセット処理
     resetGame: function () {
         this.hp = 3;
         this.score = 0;
@@ -56,13 +55,13 @@ AFRAME.registerComponent('game-state', {
             if (s.parentNode) s.parentNode.removeChild(s);
         });
 
-        // 生成再開
+        // スライム生成を再開
         const generator = this.el.querySelector('[slime-generator]');
         if (generator) generator.components['slime-generator'].startGame();
     }
 });
 
-// 2. 生成機
+// 2. スライム生成機 (アップロードされたソースを維持)
 AFRAME.registerComponent('slime-generator', {
     init: function () {
         this.spawnInterval = 800;
@@ -73,11 +72,12 @@ AFRAME.registerComponent('slime-generator', {
         this.interval = setInterval(this.spawnSlime.bind(this), this.spawnInterval);
     },
     stopGenerating: function () {
-        clearInterval(this.interval);
+        if (this.interval) clearInterval(this.interval);
     },
     spawnSlime: function () {
         const scene = this.el.sceneEl;
         const slimeSize = 0.3;
+        
         const x = (Math.random() - 0.5) * 15;
         const y = 0.5; 
         const z = -(5 + Math.random() * 10); 
@@ -86,6 +86,7 @@ AFRAME.registerComponent('slime-generator', {
         slime.setAttribute('position', { x: x, y: y, z: z });
         slime.setAttribute('geometry', `primitive: sphere; radius: ${slimeSize}`); 
         slime.setAttribute('material', 'color', '#00ff00; opacity: 0.9');
+        
         slime.setAttribute('dynamic-body', `shape: sphere; mass: 2; linearDamping: 0; angularDamping: 0;`); 
         slime.setAttribute('slime', ''); 
         scene.appendChild(slime);
@@ -96,7 +97,7 @@ AFRAME.registerComponent('slime-generator', {
     }
 });
 
-// 3. スライムの挙動 (飛んできていたバージョンを維持)
+// 3. スライムの挙動 (body.velocity.set 版を維持)
 AFRAME.registerComponent('slime', {
     init: function () {
         this.gameState = this.el.sceneEl.components['game-state'];
@@ -104,6 +105,7 @@ AFRAME.registerComponent('slime', {
         this.thrustStrength = 8;
         this.hitProcessed = false; 
     },
+
     tick: function () {
         const body = this.el.body;
         if (!body || !this.playerEl || this.hitProcessed) return; 
@@ -111,6 +113,7 @@ AFRAME.registerComponent('slime', {
         const currentPos = this.el.object3D.position;
         const playerPos = this.playerEl.object3D.position;
 
+        // 距離判定
         const dist = currentPos.distanceTo(playerPos);
         if (dist < 0.7) {
             this.hitProcessed = true;
@@ -129,19 +132,20 @@ AFRAME.registerComponent('slime', {
     }
 });
 
-// 4. 剣 & 5. 盾 (維持)
+// 4. 剣 (維持)
 AFRAME.registerComponent('sword', {
     init: function () {
         this.el.addEventListener('collide', (e) => {
             const otherEl = e.detail.body.el;
             if (otherEl && otherEl.hasAttribute('slime')) {
                 this.el.sceneEl.components['game-state'].updateScore(100);
-                otherEl.parentNode.removeChild(otherEl);
+                if (otherEl.parentNode) otherEl.parentNode.removeChild(otherEl);
             }
         });
     }
 });
 
+// 5. 盾 (維持)
 AFRAME.registerComponent('shield', {
     init: function () {
         this.el.addEventListener('collide', (e) => {

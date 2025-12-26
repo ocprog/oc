@@ -1,38 +1,41 @@
 // c:\Users\sakamoto\python\testing_test\test99_etc\11-vr\simple-game.js
 
-// 1. コントローラー入力確認用コンポーネント
-// ボタンを押すと、画面上のテキストに「Trigger Pressed」などを表示します
-AFRAME.registerComponent('controller-logger', {
+// 1. コントローラー操作用コンポーネント
+// 各種ボタン入力を検知してゲームマネージャーに伝えます
+AFRAME.registerComponent('game-controls', {
     schema: { hand: { type: 'string' } },
     init: function () {
-        const logText = document.getElementById('log-text');
-        const handName = this.data.hand;
+        const gameManager = document.querySelector('[game-manager]').components['game-manager'];
+        
+        // --- グリップボタン（シールド） ---
+        this.el.addEventListener('gripdown', () => {
+            gameManager.setShield(true);
+        });
+        this.el.addEventListener('gripup', () => {
+            gameManager.setShield(false);
+        });
 
-        // ログを表示するヘルパー関数
-        const showLog = (eventName) => {
-            const msg = `${handName.toUpperCase()}: ${eventName}`;
-            console.log(msg);
-            if (logText) {
-                logText.setAttribute('value', msg);
-                // ログを目立たせるために一瞬色を変える
-                logText.setAttribute('color', '#FF0');
-                setTimeout(() => logText.setAttribute('color', '#AAA'), 200);
+        // --- B / Y ボタン（ボム） ---
+        this.el.addEventListener('bbuttondown', () => gameManager.useBomb());
+        this.el.addEventListener('ybuttondown', () => gameManager.useBomb());
+
+        // --- A / X ボタン（武器切り替え） ---
+        this.el.addEventListener('abuttondown', () => gameManager.switchWeapon());
+        this.el.addEventListener('xbuttondown', () => gameManager.switchWeapon());
+
+        // --- サムスティック（移動） ---
+        // thumbstickmovedイベントは x, y の値を持っています
+        this.el.addEventListener('thumbstickmoved', (evt) => {
+            // 左手のみ移動に使う（右手は回転などに使うことが多いが今回は左手移動のみ実装）
+            if (this.data.hand === 'left') {
+                gameManager.movePlayer(evt.detail.x, evt.detail.y);
             }
-        };
-
-        // 各種ボタンイベントをリッスン
-        // トリガー（人差し指）
-        this.el.addEventListener('triggerdown', () => showLog('Trigger Pressed'));
-        this.el.addEventListener('triggerup', () => showLog('Trigger Released'));
-        
-        // グリップ（中指）
-        this.el.addEventListener('gripdown', () => showLog('Grip Pressed'));
-        
-        // A/B/X/Y ボタン
-        this.el.addEventListener('abuttondown', () => showLog('A Button'));
-        this.el.addEventListener('bbuttondown', () => showLog('B Button'));
-        this.el.addEventListener('xbuttondown', () => showLog('X Button'));
-        this.el.addEventListener('ybuttondown', () => showLog('Y Button'));
+        });
+    },
+    
+    tick: function () {
+        // 移動処理をスムーズにするためにtickで処理してもいいが、
+        // 簡易的にgame-manager側で処理する
     }
 });
 
@@ -42,15 +45,23 @@ AFRAME.registerComponent('game-manager', {
         // ゲームの状態変数
         this.score = 0;
         this.hp = 3;
+        this.bombCount = 3;
         this.isGameOver = false;
         this.canRestart = false; // リスタート可能フラグ
+        this.isShielding = false; // シールド展開中か
+        this.weaponMode = 0; // 0: Cyan, 1: Magenta
         this.startTime = Date.now();
+
+        // プレイヤーリグ（移動用）
+        this.rig = document.getElementById('rig');
 
         // UI要素の取得
         this.scoreText = document.getElementById('score-text');
         this.hpText = document.getElementById('hp-text');
+        this.bombText = document.getElementById('bomb-text');
         this.restartBtn = document.getElementById('restart-button');
         this.restartTarget = document.getElementById('restart-click-target');
+        this.shieldEntity = document.getElementById('player-shield');
         
         // リスタートボタンにクリックイベントを追加
         if (this.restartTarget) {
@@ -124,6 +135,7 @@ AFRAME.registerComponent('game-manager', {
         // クリック（レーザーヒット）時の処理
         enemy.addEventListener('click', () => {
             if (this.isGameOver) return;
+            if (this.isShielding) return; // シールド中は攻撃できない（防御専念）
             if (enemy.classList.contains('dead')) return; // すでに倒されている場合は無視
 
             enemy.components.sound.playSound(); // 効果音再生
@@ -188,6 +200,7 @@ AFRAME.registerComponent('game-manager', {
 
     takeDamage: function () {
         if (this.isGameOver) return;
+        if (this.isShielding) return; // シールド中はダメージを受けない！
 
         this.hp -= 1;
         if (this.hpText) {
@@ -235,6 +248,7 @@ AFRAME.registerComponent('game-manager', {
         // 変数リセット
         this.score = 0;
         this.hp = 3;
+        this.bombCount = 3;
         this.isGameOver = false;
         this.canRestart = false;
         this.startTime = Date.now();
@@ -242,6 +256,7 @@ AFRAME.registerComponent('game-manager', {
         // UIリセット
         if (this.scoreText) this.scoreText.setAttribute('value', 'Score: 0');
         if (this.hpText) this.hpText.setAttribute('value', 'HP: 3');
+        if (this.bombText) this.bombText.setAttribute('value', 'BOMB: 3');
         if (this.restartBtn) this.restartBtn.setAttribute('visible', 'false');
 
         // 画面に残っている敵をすべて消す
@@ -255,5 +270,68 @@ AFRAME.registerComponent('game-manager', {
 
         // 生成ループ再開
         this.scheduleNextSpawn();
+    },
+
+    // --- 新機能 ---
+
+    // プレイヤー移動 (x: 左右, y: 前後)
+    movePlayer: function (x, y) {
+        if (this.isGameOver) return;
+        
+        const currentPos = this.rig.getAttribute('position');
+        // 移動速度調整
+        const speed = 0.1;
+        
+        // X軸（左右）のみ移動可能にする（前後はゲームバランス崩れるため制限）
+        // 範囲制限 (-4 ~ 4)
+        let newX = currentPos.x + (x * speed);
+        if (newX > 4) newX = 4;
+        if (newX < -4) newX = -4;
+
+        this.rig.setAttribute('position', `${newX} ${currentPos.y} ${currentPos.z}`);
+    },
+
+    // シールド展開
+    setShield: function (active) {
+        this.isShielding = active;
+        if (this.shieldEntity) {
+            this.shieldEntity.setAttribute('visible', active);
+        }
+        // シールド中はレーザーを消すなどの処理も可能だが、今回は「攻撃無効」判定のみ
+    },
+
+    // ボム使用
+    useBomb: function () {
+        if (this.isGameOver || this.bombCount <= 0) return;
+
+        this.bombCount--;
+        if (this.bombText) this.bombText.setAttribute('value', `BOMB: ${this.bombCount}`);
+
+        // 画面内の敵を全て倒す
+        const enemies = document.querySelectorAll('.clickable');
+        enemies.forEach(enemy => {
+            if (enemy.id !== 'restart-click-target' && !enemy.classList.contains('dead')) {
+                // クリックイベントを発火させて倒したことにする
+                enemy.emit('click');
+            }
+        });
+
+        // ボム音再生（簡易的にHTMLに追加したaudioタグを再生）
+        const bombSound = document.getElementById('bomb-sound'); // index.htmlに追加が必要
+        if (bombSound) bombSound.play();
+    },
+
+    // 武器切り替え
+    switchWeapon: function () {
+        this.weaponMode = (this.weaponMode + 1) % 2;
+        const rightHand = document.getElementById('rightHand');
+        
+        if (this.weaponMode === 0) {
+            // 通常モード (Cyan)
+            rightHand.setAttribute('line', 'color: cyan; opacity: 0.75');
+        } else {
+            // パワーモード (Magenta) - 今回は見た目だけ変更
+            rightHand.setAttribute('line', 'color: magenta; opacity: 0.75');
+        }
     }
 });

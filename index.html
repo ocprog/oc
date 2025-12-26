@@ -31,17 +31,21 @@
         </a-entity>
 
         <a-entity id="left-hand" 
-                  hand-controls="hand: left"
+                  oculus-touch-controls="hand: left" 
+                  vive-controls="hand: left" 
+                  windows-motion-controls="hand: left" 
                   static-body="shape: box" shield>
-            <a-box color="#393736" width="0.4" height="0.6" depth="0.05" position="0.05 0.05 -0.1"></a-box>
+            <a-box color="#393736" width="0.4" height="0.6" depth="0.05" position="0.05 0.05 -0.1" rotation="0 0 0" shadow></a-box>
         </a-entity>
 
         <a-entity id="right-hand" 
-                  laser-controls="hand: right" 
-                  raycaster="objects: .clickable; far: 5" 
-                  static-body="shape: box" sword>
+                  oculus-touch-controls="hand: right" 
+                  vive-controls="hand: right" 
+                  windows-motion-controls="hand: right" 
+                  static-body="shape: box" 
+                  raycaster="objects: .clickable; far: 5; showLine: true" sword>
             <a-box color="#A94442" width="0.05" height="0.05" depth="0.15" position="0 0 0.075" rotation="90 0 0"></a-box>
-            <a-cylinder color="#EEEEEE" radius="0.02" height="1.0" position="0 0.5 0.075" rotation="90 0 0"></a-cylinder>
+            <a-cylinder color="#EEEEEE" radius="0.02" height="1.0" position="0 0.5 0.075" rotation="90 0 0" shadow></a-cylinder>
         </a-entity>
         
         <a-entity slime-generator></a-entity>

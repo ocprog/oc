@@ -5,30 +5,59 @@
 AFRAME.registerComponent('game-controls', {
     schema: { hand: { type: 'string' } },
     init: function () {
-        const gameManager = document.querySelector('[game-manager]').components['game-manager'];
+        // ゲームマネージャーを遅延取得するためのヘルパー（読み込み順序エラーの回避）
+        this.getGameManager = () => {
+            const el = document.querySelector('[game-manager]');
+            return el ? el.components['game-manager'] : null;
+        };
+
+        // ログ表示用（ボタンが効いているか画面で確認できるようにする）
+        const logText = document.getElementById('log-text');
+        const showLog = (msg) => {
+            if (logText) {
+                logText.setAttribute('value', msg);
+                logText.setAttribute('color', '#FFF'); // 白く光らせる
+                setTimeout(() => logText.setAttribute('color', '#AAA'), 500);
+            }
+        };
         
         // --- グリップボタン（シールド） ---
         this.el.addEventListener('gripdown', () => {
-            gameManager.setShield(true);
+            const gm = this.getGameManager();
+            if (gm) gm.setShield(true);
+            showLog('Grip: Shield ON');
         });
         this.el.addEventListener('gripup', () => {
-            gameManager.setShield(false);
+            const gm = this.getGameManager();
+            if (gm) gm.setShield(false);
+            showLog('Grip: Shield OFF');
         });
 
         // --- B / Y ボタン（ボム） ---
-        this.el.addEventListener('bbuttondown', () => gameManager.useBomb());
-        this.el.addEventListener('ybuttondown', () => gameManager.useBomb());
+        const onBomb = () => {
+            const gm = this.getGameManager();
+            if (gm) gm.useBomb();
+            showLog('Bomb Button!');
+        };
+        this.el.addEventListener('bbuttondown', onBomb);
+        this.el.addEventListener('ybuttondown', onBomb);
 
         // --- A / X ボタン（武器切り替え） ---
-        this.el.addEventListener('abuttondown', () => gameManager.switchWeapon());
-        this.el.addEventListener('xbuttondown', () => gameManager.switchWeapon());
+        const onSwitch = () => {
+            const gm = this.getGameManager();
+            if (gm) gm.switchWeapon();
+            showLog('Switch Weapon');
+        };
+        this.el.addEventListener('abuttondown', onSwitch);
+        this.el.addEventListener('xbuttondown', onSwitch);
 
         // --- サムスティック（移動） ---
         // thumbstickmovedイベントは x, y の値を持っています
         this.el.addEventListener('thumbstickmoved', (evt) => {
             // 左手のみ移動に使う（右手は回転などに使うことが多いが今回は左手移動のみ実装）
             if (this.data.hand === 'left') {
-                gameManager.movePlayer(evt.detail.x, evt.detail.y);
+                const gm = this.getGameManager();
+                if (gm) gm.movePlayer(evt.detail.x, evt.detail.y);
             }
         });
     },

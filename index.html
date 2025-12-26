@@ -24,6 +24,7 @@
             <!-- 左手: 手のモデルを表示。ボタンを押すとログが出る -->
             <a-entity id="leftHand" 
                       hand-controls="hand: left; handModelStyle: lowPoly; color: #ffcccc"
+                      oculus-touch-controls="hand: left; model: false"
                       game-controls="hand: left">
             </a-entity>
 
@@ -32,6 +33,7 @@
                       laser-controls="hand: right" 
                       raycaster="objects: .clickable; far: 50"
                       line="color: cyan; opacity: 0.75"
+                      oculus-touch-controls="hand: right; model: false"
                       game-controls="hand: right">
             </a-entity>
 

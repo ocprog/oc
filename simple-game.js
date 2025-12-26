@@ -54,6 +54,7 @@ AFRAME.registerComponent('game-manager', {
         // リスタートボタンにクリックイベントを追加
         if (this.restartTarget) {
             this.restartTarget.addEventListener('click', () => {
+                if (!this.isGameOver) return; // ゲームオーバー時以外は反応しない
                 console.log("Restart button clicked!"); // デバッグ用ログ
                 this.restartGame();
             });
@@ -119,9 +120,12 @@ AFRAME.registerComponent('game-manager', {
         // クリック（レーザーヒット）時の処理
         enemy.addEventListener('click', () => {
             if (this.isGameOver) return;
+            if (enemy.classList.contains('dead')) return; // すでに倒されている場合は無視
+
+            enemy.classList.add('dead'); // 倒されたフラグ
             this.addScore();
             
-            // クリックされたらアニメーションを止める（HP減少を防ぐため）
+            // クリックされたらアニメーションを止める
             enemy.removeAttribute('animation');
 
             // 爆発エフェクト（拡大して透明になって消える）
@@ -145,7 +149,11 @@ AFRAME.registerComponent('game-manager', {
         });
 
         // 移動が終わったら（プレイヤーに到達したら）
-        enemy.addEventListener('animationcomplete', () => {
+        enemy.addEventListener('animationcomplete', (e) => {
+            // 倒された後や、移動以外のアニメーション完了は無視
+            if (enemy.classList.contains('dead')) return;
+            if (e.detail.name !== 'animation') return;
+
             if (enemy.parentNode) {
                 // ダメージ処理
                 this.takeDamage();

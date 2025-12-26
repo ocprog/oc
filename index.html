@@ -45,8 +45,8 @@
             <a-text id="log-text" value="Press trigger to shoot" align="center" position="0 -0.2 0.01" color="#AAA"></a-text>
 
             <!-- リスタートボタン (初期は非表示) -->
-            <a-entity id="restart-button" position="0 -0.8 0.1" visible="false" class="clickable">
-                <a-plane width="2" height="0.6" color="#228822"></a-plane>
+            <a-entity id="restart-button" position="0 -0.8 0.1" visible="false">
+                <a-plane id="restart-click-target" class="clickable" width="2" height="0.6" color="#228822"></a-plane>
                 <a-text value="RESTART" align="center" position="0 0 0.01" scale="2 2 2"></a-text>
             </a-entity>
         </a-entity>

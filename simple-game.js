@@ -69,8 +69,8 @@ AFRAME.registerComponent('game-manager', {
         const elapsedSeconds = (Date.now() - this.startTime) / 1000;
 
         // 出現間隔の計算: 初期1500ms -> 時間経過で最短400msまで短くなる
-        // 10秒ごとに約100ms短くなる計算
-        let interval = 1500 - (elapsedSeconds * 10);
+        // 難易度上昇速度アップ（以前の5倍の速さで間隔が短くなります）
+        let interval = 1500 - (elapsedSeconds * 50);
         if (interval < 400) interval = 400;
 
         setTimeout(() => {
@@ -90,7 +90,8 @@ AFRAME.registerComponent('game-manager', {
         // 難易度調整：移動速度
         const elapsedSeconds = (Date.now() - this.startTime) / 1000;
         // 移動時間: 初期4000ms -> 時間経過で最短1000msまで速くなる
-        let duration = 4000 - (elapsedSeconds * 50);
+        // 難易度上昇速度アップ（以前の2倍の速さで敵が速くなります）
+        let duration = 4000 - (elapsedSeconds * 100);
         if (duration < 1000) duration = 1000;
         
         // 出現位置（前方ランダム）
@@ -209,7 +210,7 @@ AFRAME.registerComponent('game-manager', {
         // 画面に残っている敵をすべて消す
         const enemies = document.querySelectorAll('.clickable');
         enemies.forEach(el => {
-            if (el.id !== 'restart-button') { // リスタートボタン以外を消す
+            if (el.id !== 'restart-click-target') { // リスタートボタン以外を消す
                 if (el.parentNode) el.parentNode.removeChild(el);
             }
         });

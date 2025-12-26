@@ -21,7 +21,8 @@
         
         <!-- プレイヤーリグ（カメラと手） -->
         <a-entity id="rig" position="0 0 0">
-            <a-camera position="0 1.6 0"></a-camera>
+            <!-- 視点を少し高く(Y=2.3)、後ろ(Z=1.0)にして、斜め上から見下ろす感じにする -->
+            <a-camera position="0 2.3 1.0" rotation="-20 0 0"></a-camera>
             
             <!-- プレイヤーのバー（パドル）: 目の前に表示され、リグと一緒に左右に動く -->
             <a-box id="paddle" color="#00AAFF" width="2.5" height="0.1" depth="0.1" position="0 1.0 -1" material="opacity: 0.3; transparent: true"></a-box>
@@ -53,6 +54,9 @@
             
             <!-- HP -->
             <a-text id="hp-text" value="HP: 3" align="center" position="0 0.3 0.01" scale="2 2 2" color="#FF4444"></a-text>
+            
+            <!-- ミサイル残弾 -->
+            <a-text id="missile-text" value="MISSILE: 0" align="center" position="0 -0.2 0.01" scale="2 2 2" color="#FFFF00"></a-text>
             
             <!-- 操作説明 -->
             <a-text id="log-text" value="L-Stick: Move Left/Right" align="center" position="0 -0.6 0.01" color="#AAA" scale="0.8 0.8 0.8"></a-text>

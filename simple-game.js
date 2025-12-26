@@ -23,6 +23,14 @@ AFRAME.registerComponent('game-controls', {
             }
         };
         
+        // --- トリガー（ミサイル発射） ---
+        this.el.addEventListener('triggerdown', () => {
+            if (this.data.hand === 'right') {
+                const gm = this.getGameManager();
+                if (gm) gm.fireMissile();
+            }
+        });
+
         // --- サムスティック（移動） ---
         // thumbstickmovedイベントは x, y の値を持っています
         this.el.addEventListener('thumbstickmoved', (evt) => {
@@ -54,6 +62,7 @@ AFRAME.registerComponent('game-manager', {
         // ゲームの状態変数
         this.score = 0;
         this.hp = 3;
+        this.missileCount = 0;
         this.isGameOver = false;
         this.canRestart = false; // リスタート可能フラグ
         
@@ -68,11 +77,14 @@ AFRAME.registerComponent('game-manager', {
         // UI要素の取得
         this.scoreText = document.getElementById('score-text');
         this.hpText = document.getElementById('hp-text');
+        this.missileText = document.getElementById('missile-text');
         this.restartBtn = document.getElementById('restart-button');
         this.restartTarget = document.getElementById('restart-click-target');
         
         // ブロック管理用配列
         this.blocks = [];
+        this.items = [];
+        this.missiles = [];
         
         // リスタートボタンにクリックイベントを追加
         if (this.restartTarget) {
@@ -103,6 +115,15 @@ AFRAME.registerComponent('game-manager', {
             if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
         });
         this.blocks = [];
+        
+        // アイテムとミサイルもリセット
+        this.items.forEach(i => { if (i.el.parentNode) i.el.parentNode.removeChild(i.el); });
+        this.items = [];
+        this.missiles.forEach(m => { if (m.el.parentNode) m.el.parentNode.removeChild(m.el); });
+        this.missiles = [];
+        
+        this.missileCount = 0;
+        if (this.missileText) this.missileText.setAttribute('value', 'MISSILE: 0');
 
         // ブロック生成 (5行 x 6列)
         const rows = 5;
@@ -236,11 +257,20 @@ AFRAME.registerComponent('game-manager', {
                 this.addScore();
                 this.ball.components.sound.playSound();
 
+                // アイテム出現判定 (30%の確率)
+                if (Math.random() < 0.3) {
+                    this.spawnItem(b.x, b.z);
+                }
+
                 // 反射（基本はZ反転）
                 this.ballVelocity.z *= -1;
                 break; // 1フレームに1個だけ壊す
             }
         }
+
+        // アイテムとミサイルの更新処理
+        this.updateItems(dt);
+        this.updateMissiles(dt);
 
         // 画面上のボール位置を更新
         this.ball.setAttribute('position', ballPos);
@@ -311,12 +341,14 @@ AFRAME.registerComponent('game-manager', {
         // 変数リセット
         this.score = 0;
         this.hp = 3;
+        this.missileCount = 0;
         this.isGameOver = false;
         this.canRestart = false;
 
         // UIリセット
         if (this.scoreText) this.scoreText.setAttribute('value', 'Score: 0');
         if (this.hpText) this.hpText.setAttribute('value', 'HP: 3');
+        if (this.missileText) this.missileText.setAttribute('value', 'MISSILE: 0');
         if (this.restartBtn) this.restartBtn.setAttribute('visible', 'false');
 
         // レベル再構築
@@ -340,5 +372,119 @@ AFRAME.registerComponent('game-manager', {
         if (newX < -4) newX = -4;
 
         this.rig.setAttribute('position', `${newX} ${currentPos.y} ${currentPos.z}`);
+    },
+
+    // アイテム生成
+    spawnItem: function (x, z) {
+        const itemEl = document.createElement('a-box');
+        itemEl.setAttribute('width', '0.5');
+        itemEl.setAttribute('height', '0.5');
+        itemEl.setAttribute('depth', '0.5');
+        itemEl.setAttribute('color', '#FFFF00'); // 黄色
+        itemEl.setAttribute('position', `${x} 1.0 ${z}`);
+        // 回転アニメーション
+        itemEl.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 2000; easing: linear');
+        
+        this.el.sceneEl.appendChild(itemEl);
+        this.items.push({ el: itemEl, x: x, z: z });
+    },
+
+    // アイテム更新（移動と取得判定）
+    updateItems: function (dt) {
+        const rigPos = this.rig.getAttribute('position');
+        const paddleX = rigPos.x;
+        const paddleZ = rigPos.z - 1;
+        const speed = 2.0; // アイテムの移動速度
+
+        for (let i = this.items.length - 1; i >= 0; i--) {
+            const item = this.items[i];
+            item.z += speed * dt; // プレイヤーに向かってくる
+            item.el.setAttribute('position', `${item.x} 1.0 ${item.z}`);
+
+            // プレイヤー（バー）との当たり判定
+            if (Math.abs(item.z - paddleZ) < 0.5 && Math.abs(item.x - paddleX) < 1.5) {
+                // 取得！
+                this.missileCount += 3;
+                if (this.missileText) this.missileText.setAttribute('value', `MISSILE: ${this.missileCount}`);
+                
+                // 取得音（既存の音を流用）
+                this.ball.components.sound.playSound();
+
+                // 削除
+                item.el.parentNode.removeChild(item.el);
+                this.items.splice(i, 1);
+                continue;
+            }
+
+            // 通り過ぎたら削除
+            if (item.z > rigPos.z + 2) {
+                item.el.parentNode.removeChild(item.el);
+                this.items.splice(i, 1);
+            }
+        }
+    },
+
+    // ミサイル発射
+    fireMissile: function () {
+        if (this.isGameOver || this.missileCount <= 0) return;
+
+        this.missileCount--;
+        if (this.missileText) this.missileText.setAttribute('value', `MISSILE: ${this.missileCount}`);
+
+        const rigPos = this.rig.getAttribute('position');
+        // 右手の位置（おおよそ）から発射
+        const x = rigPos.x + 0.2; 
+        const z = rigPos.z - 0.5;
+
+        const missileEl = document.createElement('a-cylinder');
+        missileEl.setAttribute('radius', '0.05');
+        missileEl.setAttribute('height', '0.5');
+        missileEl.setAttribute('color', '#FFA500'); // オレンジ
+        missileEl.setAttribute('rotation', '90 0 0');
+        missileEl.setAttribute('position', `${x} 1.0 ${z}`);
+        
+        this.el.sceneEl.appendChild(missileEl);
+        this.missiles.push({ el: missileEl, x: x, z: z });
+        
+        // 発射音（ボム音流用）
+        const bombSound = document.getElementById('bomb-sound');
+        if (bombSound) {
+            bombSound.currentTime = 0;
+            bombSound.play();
+        }
+    },
+
+    // ミサイル更新（移動と破壊判定）
+    updateMissiles: function (dt) {
+        const speed = 10.0; // ミサイル速度
+
+        for (let i = this.missiles.length - 1; i >= 0; i--) {
+            const m = this.missiles[i];
+            m.z -= speed * dt; // 奥へ飛んでいく
+            m.el.setAttribute('position', `${m.x} 1.0 ${m.z}`);
+
+            // ブロックとの当たり判定
+            let hit = false;
+            for (let j = 0; j < this.blocks.length; j++) {
+                const b = this.blocks[j];
+                if (!b.active) continue;
+
+                if (Math.abs(m.x - b.x) < 0.8 && Math.abs(m.z - b.z) < 0.5) {
+                    // 命中！
+                    b.active = false;
+                    b.el.parentNode.removeChild(b.el);
+                    this.addScore();
+                    this.ball.components.sound.playSound();
+                    hit = true;
+                    break;
+                }
+            }
+
+            // 命中するか、遠くへ行ったら削除
+            if (hit || m.z < -25) {
+                m.el.parentNode.removeChild(m.el);
+                this.missiles.splice(i, 1);
+            }
+        }
     }
 });

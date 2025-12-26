@@ -24,7 +24,7 @@
             <!-- 右手: レーザーポインターを表示。敵をクリックできる -->
             <a-entity id="rightHand" 
                       laser-controls="hand: right" 
-                      raycaster="objects: .enemy; far: 50"
+                      raycaster="objects: .clickable; far: 50"
                       line="color: cyan; opacity: 0.75"
                       controller-logger="hand: right">
             </a-entity>
@@ -33,13 +33,22 @@
         <!-- UI: 画面正面にログとスコアを表示 -->
         <a-entity position="0 2 -3">
             <!-- 背景パネル -->
-            <a-plane width="4" height="1.5" color="#000" opacity="0.7"></a-plane>
+            <a-plane width="4" height="2.5" color="#000" opacity="0.7"></a-plane>
             
             <!-- スコア -->
-            <a-text id="score-text" value="Score: 0" align="center" position="0 0.4 0.01" scale="2 2 2" color="#FFF"></a-text>
+            <a-text id="score-text" value="Score: 0" align="center" position="0 0.8 0.01" scale="2 2 2" color="#FFF"></a-text>
+            
+            <!-- HP -->
+            <a-text id="hp-text" value="HP: 3" align="center" position="0 0.3 0.01" scale="2 2 2" color="#FF4444"></a-text>
             
             <!-- ログ（ボタン入力確認用） -->
-            <a-text id="log-text" value="Press any button on controller" align="center" position="0 -0.2 0.01" color="#AAA"></a-text>
+            <a-text id="log-text" value="Press trigger to shoot" align="center" position="0 -0.2 0.01" color="#AAA"></a-text>
+
+            <!-- リスタートボタン (初期は非表示) -->
+            <a-entity id="restart-button" position="0 -0.8 0.1" visible="false" class="clickable">
+                <a-plane width="2" height="0.6" color="#228822"></a-plane>
+                <a-text value="RESTART" align="center" position="0 0 0.01" scale="2 2 2"></a-text>
+            </a-entity>
         </a-entity>
 
         <!-- ゲーム管理（敵生成など） -->

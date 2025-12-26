@@ -43,6 +43,7 @@ AFRAME.registerComponent('game-manager', {
         this.score = 0;
         this.hp = 3;
         this.isGameOver = false;
+        this.canRestart = false; // リスタート可能フラグ
         this.startTime = Date.now();
 
         // UI要素の取得
@@ -54,7 +55,7 @@ AFRAME.registerComponent('game-manager', {
         // リスタートボタンにクリックイベントを追加
         if (this.restartTarget) {
             this.restartTarget.addEventListener('click', () => {
-                if (!this.isGameOver) return; // ゲームオーバー時以外は反応しない
+                if (!this.isGameOver || !this.canRestart) return; // ゲームオーバーかつリスタート許可時のみ
                 console.log("Restart button clicked!"); // デバッグ用ログ
                 this.restartGame();
             });
@@ -99,7 +100,7 @@ AFRAME.registerComponent('game-manager', {
         
         // 出現位置（前方ランダム）
         const x = (Math.random() - 0.5) * 8;
-        const y = 1 + Math.random() * 2;
+        const y = 0.5 + Math.random() * 1.5; // UIと被らないよう少し低めに出現
         const z = -15; // 15メートル先
         
         enemy.setAttribute('geometry', 'primitive: sphere; radius: 0.5');
@@ -202,6 +203,27 @@ AFRAME.registerComponent('game-manager', {
         // リスタートボタンを表示
         if (this.restartBtn) {
             this.restartBtn.setAttribute('visible', 'true');
+            
+            // 5秒間のクールダウン処理
+            this.canRestart = false;
+            const plane = document.getElementById('restart-click-target');
+            const text = this.restartBtn.querySelector('a-text');
+            
+            if (plane) plane.setAttribute('color', '#555555'); // 押せない色はグレー
+            let countdown = 5;
+            if (text) text.setAttribute('value', `Wait ${countdown}...`);
+
+            const timer = setInterval(() => {
+                countdown--;
+                if (text) text.setAttribute('value', `Wait ${countdown}...`);
+                
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    this.canRestart = true;
+                    if (plane) plane.setAttribute('color', '#228822'); // 押せるようになったら緑
+                    if (text) text.setAttribute('value', 'RESTART');
+                }
+            }, 1000);
         }
     },
 
@@ -210,6 +232,7 @@ AFRAME.registerComponent('game-manager', {
         this.score = 0;
         this.hp = 3;
         this.isGameOver = false;
+        this.canRestart = false;
         this.startTime = Date.now();
 
         // UIリセット

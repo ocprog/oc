@@ -87,7 +87,7 @@ AFRAME.registerComponent('game-manager', {
         this.ball = document.createElement('a-entity');
         this.ball.setAttribute('geometry', 'primitive: sphere; radius: 0.4');
         this.ball.setAttribute('material', 'color: #FF4444; roughness: 0.2');
-        this.ball.setAttribute('position', '0 1.2 -5');
+        this.ball.setAttribute('position', '0 1.0 -5');
         // バウンド音
         this.ball.setAttribute('sound', 'src: #bounce-sound; poolSize: 5; volume: 1.0');
         this.el.sceneEl.appendChild(this.ball);
@@ -117,7 +117,7 @@ AFRAME.registerComponent('game-manager', {
                 const bx = (c - (cols - 1) / 2) * spacingX;
                 const bz = startZ - (r * spacingZ);
                 
-                blockEl.setAttribute('position', `${bx} 1.2 ${bz}`);
+                blockEl.setAttribute('position', `${bx} 1.0 ${bz}`);
                 blockEl.setAttribute('width', '1.3');
                 blockEl.setAttribute('height', '0.5');
                 blockEl.setAttribute('depth', '0.5');
@@ -144,7 +144,7 @@ AFRAME.registerComponent('game-manager', {
 
     resetBall: function () {
         // ボールを初期位置へ
-        this.ball.setAttribute('position', '0 1.2 -5');
+        this.ball.setAttribute('position', '0 1.0 -5');
         
         // プレイヤーに向かって飛んでくるように速度設定
         // Z軸プラス方向がプレイヤー方向

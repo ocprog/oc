@@ -5,6 +5,8 @@
 AFRAME.registerComponent('game-controls', {
     schema: { hand: { type: 'string' } },
     init: function () {
+        this.thumbstick = { x: 0, y: 0 }; // サムスティックの状態保存用
+
         // ゲームマネージャーを遅延取得するためのヘルパー（読み込み順序エラーの回避）
         this.getGameManager = () => {
             const el = document.querySelector('[game-manager]');
@@ -56,15 +58,23 @@ AFRAME.registerComponent('game-controls', {
         this.el.addEventListener('thumbstickmoved', (evt) => {
             // 左手のみ移動に使う（右手は回転などに使うことが多いが今回は左手移動のみ実装）
             if (this.data.hand === 'left') {
-                const gm = this.getGameManager();
-                if (gm) gm.movePlayer(evt.detail.x, evt.detail.y);
+                // 値を保存してtickで処理する（スムーズな移動のため）
+                this.thumbstick.x = evt.detail.x;
+                this.thumbstick.y = evt.detail.y;
             }
         });
     },
     
-    tick: function () {
-        // 移動処理をスムーズにするためにtickで処理してもいいが、
-        // 簡易的にgame-manager側で処理する
+    tick: function (time, timeDelta) {
+        // 左手のサムスティック入力がある場合、移動処理を行う
+        if (this.data.hand === 'left' && (Math.abs(this.thumbstick.x) > 0.1 || Math.abs(this.thumbstick.y) > 0.1)) {
+            const gm = this.getGameManager();
+            if (gm) {
+                // フレームレートに合わせて移動量を調整
+                const factor = timeDelta / 16; 
+                gm.movePlayer(this.thumbstick.x * factor, this.thumbstick.y * factor);
+            }
+        }
     }
 });
 
@@ -309,7 +319,7 @@ AFRAME.registerComponent('game-manager', {
         
         const currentPos = this.rig.getAttribute('position');
         // 移動速度調整
-        const speed = 0.1;
+        const speed = 0.05;
         
         // X軸（左右）のみ移動可能にする（前後はゲームバランス崩れるため制限）
         // 範囲制限 (-4 ~ 4)

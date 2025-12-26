@@ -107,6 +107,9 @@ AFRAME.registerComponent('game-manager', {
         enemy.setAttribute('material', 'color: #FF4444; roughness: 0.5');
         enemy.setAttribute('position', `${x} ${y} ${z}`);
         
+        // 効果音設定 (poolSize: 同時に複数の音が鳴っても大丈夫なように数を確保)
+        enemy.setAttribute('sound', 'src: #explode-sound; poolSize: 10; volume: 1.0');
+
         // レーザーで撃てるようにクラスを設定
         enemy.classList.add('clickable');
 
@@ -123,6 +126,7 @@ AFRAME.registerComponent('game-manager', {
             if (this.isGameOver) return;
             if (enemy.classList.contains('dead')) return; // すでに倒されている場合は無視
 
+            enemy.components.sound.playSound(); // 効果音再生
             enemy.classList.add('dead'); // 倒されたフラグ
             this.addScore();
             

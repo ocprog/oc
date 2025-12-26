@@ -10,6 +10,10 @@
 </head>
 <body>
     <a-scene background="color: #222">
+        <a-assets>
+            <!-- 効果音: ここを好きなmp3ファイルのURLに変えると音が変わります -->
+            <audio id="explode-sound" src="https://cdn.aframe.io/scavenger-hunt/points.mp3" preload="auto"></audio>
+        </a-assets>
         
         <!-- プレイヤーリグ（カメラと手） -->
         <a-entity id="rig" position="0 0 0">

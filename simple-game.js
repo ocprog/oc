@@ -49,10 +49,12 @@ AFRAME.registerComponent('game-manager', {
         this.scoreText = document.getElementById('score-text');
         this.hpText = document.getElementById('hp-text');
         this.restartBtn = document.getElementById('restart-button');
+        this.restartTarget = document.getElementById('restart-click-target');
         
         // リスタートボタンにクリックイベントを追加
-        if (this.restartBtn) {
-            this.restartBtn.addEventListener('click', () => {
+        if (this.restartTarget) {
+            this.restartTarget.addEventListener('click', () => {
+                console.log("Restart button clicked!"); // デバッグ用ログ
                 this.restartGame();
             });
         }
@@ -210,7 +212,8 @@ AFRAME.registerComponent('game-manager', {
         // 画面に残っている敵をすべて消す
         const enemies = document.querySelectorAll('.clickable');
         enemies.forEach(el => {
-            if (el.id !== 'restart-click-target') { // リスタートボタン以外を消す
+            // リスタートボタンのパーツは消さないようにIDチェックを強化
+            if (el.id !== 'restart-click-target' && el.id !== 'restart-button') { 
                 if (el.parentNode) el.parentNode.removeChild(el);
             }
         });

@@ -15,11 +15,16 @@
             <audio id="explode-sound" src="https://cdn.aframe.io/scavenger-hunt/points.mp3" preload="auto"></audio>
             <!-- ボム音 -->
             <audio id="bomb-sound" src="https://cdn.aframe.io/scavenger-hunt/whistle.mp3" preload="auto"></audio>
+            <!-- バウンド音 -->
+            <audio id="bounce-sound" src="https://cdn.aframe.io/scavenger-hunt/pop.mp3" preload="auto"></audio>
         </a-assets>
         
         <!-- プレイヤーリグ（カメラと手） -->
         <a-entity id="rig" position="0 0 0">
             <a-camera position="0 1.6 0"></a-camera>
+            
+            <!-- プレイヤーのバー（パドル）: 目の前に表示され、リグと一緒に左右に動く -->
+            <a-box id="paddle" color="#00AAFF" width="2.5" height="0.4" depth="0.1" position="0 1.2 -1" material="opacity: 0.8; transparent: true"></a-box>
             
             <!-- 左手: 手のモデルを表示。ボタンを押すとログが出る -->
             <a-entity id="leftHand" 
@@ -36,11 +41,6 @@
                       oculus-touch-controls="hand: right; model: false"
                       game-controls="hand: right">
             </a-entity>
-
-            <!-- シールドエフェクト（初期は非表示） -->
-            <a-sphere id="player-shield" visible="false" radius="1.2" color="#00AAFF" 
-                      material="opacity: 0.3; transparent: true; side: double"
-                      animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"></a-sphere>
         </a-entity>
 
         <!-- UI: 画面正面にログとスコアを表示 -->
@@ -54,11 +54,8 @@
             <!-- HP -->
             <a-text id="hp-text" value="HP: 3" align="center" position="0 0.3 0.01" scale="2 2 2" color="#FF4444"></a-text>
             
-            <!-- ボム残弾 -->
-            <a-text id="bomb-text" value="BOMB: 3" align="center" position="0 -0.2 0.01" scale="2 2 2" color="#FFFF00"></a-text>
-            
             <!-- 操作説明 -->
-            <a-text id="log-text" value="L-Stick: Move | Grip: Shield | B/Y: Bomb" align="center" position="0 -0.6 0.01" color="#AAA" scale="0.8 0.8 0.8"></a-text>
+            <a-text id="log-text" value="L-Stick: Move Left/Right" align="center" position="0 -0.6 0.01" color="#AAA" scale="0.8 0.8 0.8"></a-text>
 
             <!-- リスタートボタン (初期は非表示) -->
             <a-entity id="restart-button" position="0 -0.8 0.1" visible="false">

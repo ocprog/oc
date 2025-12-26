@@ -23,36 +23,6 @@ AFRAME.registerComponent('game-controls', {
             }
         };
         
-        // --- グリップボタン（シールド） ---
-        this.el.addEventListener('gripdown', () => {
-            const gm = this.getGameManager();
-            if (gm) gm.setShield(true);
-            showLog('Grip: Shield ON');
-        });
-        this.el.addEventListener('gripup', () => {
-            const gm = this.getGameManager();
-            if (gm) gm.setShield(false);
-            showLog('Grip: Shield OFF');
-        });
-
-        // --- B / Y ボタン（ボム） ---
-        const onBomb = () => {
-            const gm = this.getGameManager();
-            if (gm) gm.useBomb();
-            showLog('Bomb Button!');
-        };
-        this.el.addEventListener('bbuttondown', onBomb);
-        this.el.addEventListener('ybuttondown', onBomb);
-
-        // --- A / X ボタン（武器切り替え） ---
-        const onSwitch = () => {
-            const gm = this.getGameManager();
-            if (gm) gm.switchWeapon();
-            showLog('Switch Weapon');
-        };
-        this.el.addEventListener('abuttondown', onSwitch);
-        this.el.addEventListener('xbuttondown', onSwitch);
-
         // --- サムスティック（移動） ---
         // thumbstickmovedイベントは x, y の値を持っています
         this.el.addEventListener('thumbstickmoved', (evt) => {
@@ -84,23 +54,25 @@ AFRAME.registerComponent('game-manager', {
         // ゲームの状態変数
         this.score = 0;
         this.hp = 3;
-        this.bombCount = 3;
         this.isGameOver = false;
         this.canRestart = false; // リスタート可能フラグ
-        this.isShielding = false; // シールド展開中か
-        this.weaponMode = 0; // 0: Cyan, 1: Magenta
-        this.startTime = Date.now();
+        
+        // ボール設定
+        this.ballSpeed = 5.0; // 初速
+        this.ballVelocity = { x: 0, z: 0 };
 
         // プレイヤーリグ（移動用）
         this.rig = document.getElementById('rig');
+        this.paddle = document.getElementById('paddle');
 
         // UI要素の取得
         this.scoreText = document.getElementById('score-text');
         this.hpText = document.getElementById('hp-text');
-        this.bombText = document.getElementById('bomb-text');
         this.restartBtn = document.getElementById('restart-button');
         this.restartTarget = document.getElementById('restart-click-target');
-        this.shieldEntity = document.getElementById('player-shield');
+        
+        // ブロック管理用配列
+        this.blocks = [];
         
         // リスタートボタンにクリックイベントを追加
         if (this.restartTarget) {
@@ -111,114 +83,167 @@ AFRAME.registerComponent('game-manager', {
             });
         }
 
+        // ボールの生成
+        this.ball = document.createElement('a-entity');
+        this.ball.setAttribute('geometry', 'primitive: sphere; radius: 0.4');
+        this.ball.setAttribute('material', 'color: #FF4444; roughness: 0.2');
+        this.ball.setAttribute('position', '0 1.2 -5');
+        // バウンド音
+        this.ball.setAttribute('sound', 'src: #bounce-sound; poolSize: 5; volume: 1.0');
+        this.el.sceneEl.appendChild(this.ball);
+
         // ゲーム開始
-        this.scheduleNextSpawn();
+        this.setupLevel();
     },
 
-    // 次の敵の出現をスケジュールする（難易度調整付き）
-    scheduleNextSpawn: function () {
-        if (this.isGameOver) return;
-
-        // 経過時間（秒）を計算
-        const elapsedSeconds = (Date.now() - this.startTime) / 1000;
-
-        // 出現間隔の計算: 初期1500ms -> 時間経過で最短400msまで短くなる
-        // 難易度上昇速度アップ（以前の5倍の速さで間隔が短くなります）
-        let interval = 1500 - (elapsedSeconds * 50);
-        if (interval < 400) interval = 400;
-
-        setTimeout(() => {
-            this.spawnEnemy();
-            this.scheduleNextSpawn(); // 再帰的に呼び出し
-        }, interval);
-    },
-
-    spawnEnemy: function () {
-        if (this.isGameOver) return;
-
-        const scene = this.el.sceneEl;
-        
-        // 敵（赤い球体）を作成
-        const enemy = document.createElement('a-entity');
-
-        // 難易度調整：移動速度
-        const elapsedSeconds = (Date.now() - this.startTime) / 1000;
-        // 移動時間: 初期4000ms -> 時間経過で最短1000msまで速くなる
-        // 難易度上昇速度アップ（以前の2倍の速さで敵が速くなります）
-        let duration = 4000 - (elapsedSeconds * 100);
-        if (duration < 1000) duration = 1000;
-        
-        // 出現位置（前方ランダム）
-        const x = (Math.random() - 0.5) * 8;
-        const y = 0.5 + Math.random() * 1.5; // UIと被らないよう少し低めに出現
-        const z = -15; // 15メートル先
-        
-        enemy.setAttribute('geometry', 'primitive: sphere; radius: 0.5');
-        enemy.setAttribute('material', 'color: #FF4444; roughness: 0.5');
-        enemy.setAttribute('position', `${x} ${y} ${z}`);
-        
-        // 効果音設定 (poolSize: 同時に複数の音が鳴っても大丈夫なように数を確保)
-        enemy.setAttribute('sound', 'src: #explode-sound; poolSize: 10; volume: 1.0');
-
-        // レーザーで撃てるようにクラスを設定
-        enemy.classList.add('clickable');
-
-        // アニメーション：手前に向かって飛んでくる（物理演算ではなくアニメーションを使用）
-        enemy.setAttribute('animation', {
-            property: 'position',
-            to: `${x} ${y} 2`, // プレイヤーの後ろ（Z=2）まで移動
-            dur: duration,     // 計算した速度
-            easing: 'linear'
+    // ブロックの配置とボールのリセット
+    setupLevel: function () {
+        // 既存のブロックを削除
+        this.blocks.forEach(b => {
+            if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
         });
+        this.blocks = [];
 
-        // クリック（レーザーヒット）時の処理
-        enemy.addEventListener('click', () => {
-            if (this.isGameOver) return;
-            if (this.isShielding) return; // シールド中は攻撃できない（防御専念）
-            if (enemy.classList.contains('dead')) return; // すでに倒されている場合は無視
+        // ブロック生成 (5行 x 6列)
+        const rows = 5;
+        const cols = 6;
+        const startZ = -10; // 10m先から配置
+        const spacingX = 1.5;
+        const spacingZ = 1.0;
 
-            enemy.components.sound.playSound(); // 効果音再生
-            enemy.classList.add('dead'); // 倒されたフラグ
-            this.addScore();
-            
-            // クリックされたらアニメーションを止める
-            enemy.removeAttribute('animation');
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const blockEl = document.createElement('a-box');
+                const bx = (c - (cols - 1) / 2) * spacingX;
+                const bz = startZ - (r * spacingZ);
+                
+                blockEl.setAttribute('position', `${bx} 1.2 ${bz}`);
+                blockEl.setAttribute('width', '1.3');
+                blockEl.setAttribute('height', '0.5');
+                blockEl.setAttribute('depth', '0.5');
+                // 色をランダムに
+                const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF'];
+                blockEl.setAttribute('color', colors[Math.floor(Math.random() * colors.length)]);
+                
+                this.el.sceneEl.appendChild(blockEl);
 
-            // 爆発エフェクト（拡大して透明になって消える）
-            enemy.setAttribute('material', 'color: #FFFF00; opacity: 1');
-            
-            enemy.setAttribute('animation__die', {
-                property: 'scale',
-                to: '2 2 2',
-                dur: 200
-            });
-            enemy.setAttribute('animation__fade', {
-                property: 'material.opacity',
-                to: '0',
-                dur: 200
-            });
-
-            // アニメーション終了後に削除
-            setTimeout(() => {
-                if (enemy.parentNode) enemy.parentNode.removeChild(enemy);
-            }, 200);
-        });
-
-        // 移動が終わったら（プレイヤーに到達したら）
-        enemy.addEventListener('animationcomplete', (e) => {
-            // 倒された後や、移動以外のアニメーション完了は無視
-            if (enemy.classList.contains('dead')) return;
-            if (e.detail.name !== 'animation') return;
-
-            if (enemy.parentNode) {
-                // ダメージ処理
-                this.takeDamage();
-                // 敵を削除
-                enemy.parentNode.removeChild(enemy);
+                // 当たり判定用にデータを保存
+                this.blocks.push({
+                    el: blockEl,
+                    x: bx,
+                    z: bz,
+                    width: 1.3,
+                    depth: 0.5,
+                    active: true
+                });
             }
-        });
+        }
 
-        scene.appendChild(enemy);
+        this.resetBall();
+    },
+
+    resetBall: function () {
+        // ボールを初期位置へ
+        this.ball.setAttribute('position', '0 1.2 -5');
+        
+        // プレイヤーに向かって飛んでくるように速度設定
+        // Z軸プラス方向がプレイヤー方向
+        this.ballVelocity.z = this.ballSpeed;
+        // X軸はランダムに少し振る
+        this.ballVelocity.x = (Math.random() - 0.5) * 2.0;
+    },
+
+    // 毎フレームの更新処理（物理演算）
+    tick: function (time, timeDelta) {
+        if (this.isGameOver) return;
+
+        const dt = timeDelta / 1000; // 秒単位
+        const ballPos = this.ball.getAttribute('position');
+
+        // 位置更新
+        ballPos.x += this.ballVelocity.x * dt;
+        ballPos.z += this.ballVelocity.z * dt;
+
+        // 壁の反射 (X軸)
+        if (ballPos.x > 5 || ballPos.x < -5) {
+            this.ballVelocity.x *= -1;
+            ballPos.x = ballPos.x > 5 ? 5 : -5; // めり込み補正
+            this.ball.components.sound.playSound();
+        }
+
+        // 奥の壁反射 (Z軸)
+        if (ballPos.z < -20) {
+            this.ballVelocity.z *= -1;
+            ballPos.z = -20;
+            this.ball.components.sound.playSound();
+        }
+
+        // プレイヤー（バー）との当たり判定
+        // バーはリグの子要素なので、リグの位置を基準に計算
+        const rigPos = this.rig.getAttribute('position');
+        const paddleZ = rigPos.z - 1; // バーのZ位置
+        const paddleX = rigPos.x;     // バーのX位置
+        const paddleWidth = 2.5;
+        const ballRadius = 0.4;
+
+        // Z軸でバーの近くにいるか
+        if (ballPos.z + ballRadius >= paddleZ - 0.1 && ballPos.z - ballRadius <= paddleZ + 0.1) {
+            // X軸でバーの範囲内にいるか
+            if (ballPos.x >= paddleX - paddleWidth / 2 - ballRadius && 
+                ballPos.x <= paddleX + paddleWidth / 2 + ballRadius) {
+                
+                // プレイヤーに向かってきている時だけ跳ね返す
+                if (this.ballVelocity.z > 0) {
+                    this.ballVelocity.z *= -1;
+                    
+                    // バーのどこに当たったかでX方向の反射角度を変える（ブロック崩しの醍醐味）
+                    const hitOffset = ballPos.x - paddleX;
+                    this.ballVelocity.x = hitOffset * 3.0;
+
+                    // 少し加速
+                    this.ballVelocity.z *= 1.05;
+                    this.ball.components.sound.playSound();
+                }
+            }
+        }
+
+        // プレイヤーの後ろに逸らした場合 (ミス)
+        if (ballPos.z > rigPos.z + 1.5) {
+            this.takeDamage();
+            if (!this.isGameOver) {
+                this.resetBall();
+            }
+            return;
+        }
+
+        // ブロックとの当たり判定
+        for (let i = 0; i < this.blocks.length; i++) {
+            const b = this.blocks[i];
+            if (!b.active) continue;
+
+            // 簡易的なAABB衝突判定
+            const bMinX = b.x - b.width / 2 - ballRadius;
+            const bMaxX = b.x + b.width / 2 + ballRadius;
+            const bMinZ = b.z - b.depth / 2 - ballRadius;
+            const bMaxZ = b.z + b.depth / 2 + ballRadius;
+
+            if (ballPos.x >= bMinX && ballPos.x <= bMaxX &&
+                ballPos.z >= bMinZ && ballPos.z <= bMaxZ) {
+                
+                // ブロック破壊
+                b.active = false;
+                b.el.parentNode.removeChild(b.el);
+                this.addScore();
+                this.ball.components.sound.playSound();
+
+                // 反射（基本はZ反転）
+                this.ballVelocity.z *= -1;
+                break; // 1フレームに1個だけ壊す
+            }
+        }
+
+        // 画面上のボール位置を更新
+        this.ball.setAttribute('position', ballPos);
     },
 
     addScore: function () {
@@ -239,7 +264,6 @@ AFRAME.registerComponent('game-manager', {
 
     takeDamage: function () {
         if (this.isGameOver) return;
-        if (this.isShielding) return; // シールド中はダメージを受けない！
 
         this.hp -= 1;
         if (this.hpText) {
@@ -287,28 +311,16 @@ AFRAME.registerComponent('game-manager', {
         // 変数リセット
         this.score = 0;
         this.hp = 3;
-        this.bombCount = 3;
         this.isGameOver = false;
         this.canRestart = false;
-        this.startTime = Date.now();
 
         // UIリセット
         if (this.scoreText) this.scoreText.setAttribute('value', 'Score: 0');
         if (this.hpText) this.hpText.setAttribute('value', 'HP: 3');
-        if (this.bombText) this.bombText.setAttribute('value', 'BOMB: 3');
         if (this.restartBtn) this.restartBtn.setAttribute('visible', 'false');
 
-        // 画面に残っている敵をすべて消す
-        const enemies = document.querySelectorAll('.clickable');
-        enemies.forEach(el => {
-            // リスタートボタンのパーツは消さないようにIDチェックを強化
-            if (el.id !== 'restart-click-target' && el.id !== 'restart-button') { 
-                if (el.parentNode) el.parentNode.removeChild(el);
-            }
-        });
-
-        // 生成ループ再開
-        this.scheduleNextSpawn();
+        // レベル再構築
+        this.setupLevel();
     },
 
     // --- 新機能 ---
@@ -328,49 +340,5 @@ AFRAME.registerComponent('game-manager', {
         if (newX < -4) newX = -4;
 
         this.rig.setAttribute('position', `${newX} ${currentPos.y} ${currentPos.z}`);
-    },
-
-    // シールド展開
-    setShield: function (active) {
-        this.isShielding = active;
-        if (this.shieldEntity) {
-            this.shieldEntity.setAttribute('visible', active);
-        }
-        // シールド中はレーザーを消すなどの処理も可能だが、今回は「攻撃無効」判定のみ
-    },
-
-    // ボム使用
-    useBomb: function () {
-        if (this.isGameOver || this.bombCount <= 0) return;
-
-        this.bombCount--;
-        if (this.bombText) this.bombText.setAttribute('value', `BOMB: ${this.bombCount}`);
-
-        // 画面内の敵を全て倒す
-        const enemies = document.querySelectorAll('.clickable');
-        enemies.forEach(enemy => {
-            if (enemy.id !== 'restart-click-target' && !enemy.classList.contains('dead')) {
-                // クリックイベントを発火させて倒したことにする
-                enemy.emit('click');
-            }
-        });
-
-        // ボム音再生（簡易的にHTMLに追加したaudioタグを再生）
-        const bombSound = document.getElementById('bomb-sound'); // index.htmlに追加が必要
-        if (bombSound) bombSound.play();
-    },
-
-    // 武器切り替え
-    switchWeapon: function () {
-        this.weaponMode = (this.weaponMode + 1) % 2;
-        const rightHand = document.getElementById('rightHand');
-        
-        if (this.weaponMode === 0) {
-            // 通常モード (Cyan)
-            rightHand.setAttribute('line', 'color: cyan; opacity: 0.75');
-        } else {
-            // パワーモード (Magenta) - 今回は見た目だけ変更
-            rightHand.setAttribute('line', 'color: magenta; opacity: 0.75');
-        }
     }
 });
